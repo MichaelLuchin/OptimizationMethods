@@ -1,25 +1,27 @@
 public class Lab1 {
     // Метод дихотомии, вар 16
-    private static double GOLDENEPSILON = 0.618;
-    private static double EPSILON = 1E-6; //Шаг
-    private static double PRECISIONX = EPSILON*10; //Точность
+    final static double MIN_X = -3;
+    final static double MAX_X = 5;
+    private static double STEP_EPSILON = 1E-5; //Шаг
+    private static double PRECISIONX = STEP_EPSILON *10; //Точность
     // Важно, что шаг меньше, чем точность (чтобы не перешагивать лишнего)
 
-
-
-    final static double MINX = -3;
-    final static double MAXX = 5;
-
-    double a = MINX;
-    double b = MAXX;
-
-    double functionMin = function(b - (b - a)*GOLDENEPSILON);
-    double functionMinPosX = b - (b - a)*GOLDENEPSILON;
-    double prevXMax = a;
-    boolean isA = true;
-
+    // Общее
+    double a = MIN_X;
+    double b = MAX_X;
 
     int countCalls = 0;
+
+    // Для дихотомии
+    double functionMin;
+    double functionMinPosX;
+
+    // Для золотого сечения:
+    private static double GOLDEN_EPSILON = 0.618;
+    double x1 = b - (b - a)* GOLDEN_EPSILON;
+    double fX1 = function(x1);
+    double x2 = a + (b - a)* GOLDEN_EPSILON;
+    double fX2 = function(x2);
 
     private double function(double x){
         countCalls++;
@@ -31,6 +33,7 @@ public class Lab1 {
     }
 
     public void findMinOfFuncDichotomy(){
+        functionMinPosX = (b - a)/2 + a;
         while (Math.abs(a - functionMinPosX) - PRECISIONX > 0 || Math.abs(b - functionMinPosX) - PRECISIONX > 0) {
             findNewABDichotomy();
             System.out.println("Количество вызовов:" + getCountCalls());
@@ -40,6 +43,7 @@ public class Lab1 {
     }
 
     public void findMinOfFuncGoldenRation(){
+        functionMinPosX = x1;
         while (Math.abs(a - functionMinPosX) - PRECISIONX > 0 || Math.abs(b - functionMinPosX) - PRECISIONX > 0) {
             findNewABGoldenRation();
             System.out.println("Количество вызовов:" + getCountCalls());
@@ -50,8 +54,8 @@ public class Lab1 {
 
     private void findNewABDichotomy(){
         double center = (b - a)/2 + a;
-        double rightX = center + EPSILON;
-        double leftX = center - EPSILON;
+        double rightX = center + STEP_EPSILON;
+        double leftX = center - STEP_EPSILON;
 
         double leftY = function(leftX);
         double rightY = function(rightX);
@@ -68,37 +72,28 @@ public class Lab1 {
     }
 
     private void findNewABGoldenRation(){
-        double epsilon = (b - a)*GOLDENEPSILON;
+        double epsilon;
+        if (fX1 - fX2 < 0){
+            functionMin = fX1;
+            functionMinPosX = x1;
 
-        double rightX;
-        double leftX;
-        double leftY;
-        double rightY;
-
-        if (isA){
-            leftX = b - epsilon;
-            rightX = prevXMax + epsilon;
-            leftY = functionMin;
-            rightY = function(rightX);
-        }
-        else{
-            rightX = prevXMax;
-            leftX = b - epsilon;
-            rightY = functionMin;
-            leftY = function(leftX);
-        }
-
-        if (leftY - rightY < 0){
-            b = rightX;
-            functionMin = leftY;
-            functionMinPosX = leftX;
-            isA = false;
+            b = x2;
+            epsilon = (b - a)* GOLDEN_EPSILON;
+            x2 = x1;
+            fX2 = fX1;
+            x1 = b - epsilon;
+            fX1 = function(x1);
         }
         else {
-            a = leftX;
-            functionMin = rightY;
-            functionMinPosX = rightX;
-            isA = true;
+            functionMin = fX2;
+            functionMinPosX = x2;
+
+            a = x1;
+            epsilon = (b - a)* GOLDEN_EPSILON;
+            x1 = x2;
+            fX1 = fX2;
+            x2 = a + epsilon;
+            fX2 = function(x2);
         }
     }
 
