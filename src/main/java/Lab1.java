@@ -12,22 +12,57 @@ public class Lab1 {
     double a = MIN_X;
     double b = MAX_X;
     int countCalls = 0;
-    int iterationCount = 0;
+    int iterationCount = 1;
 
-    // Для дихотомии
+    // Фактический ответ
     double functionMin;
     double functionMinPosX;
 
     // Для золотого сечения:
     private static double GOLDEN_EPSILON = 0.618;
-    double x1 = b - (b - a) * GOLDEN_EPSILON;
-    double fX1 = function(x1);
-    double x2 = a + (b - a) * GOLDEN_EPSILON;
-    double fX2 = function(x2);
+    double x1=0;
+    double fX1=0;
+    double x2=0;
+    double fX2=0;
+
+    // Для фибоначчи
+    double epsilonFib;
+    int ITER_COUNTS = 20;
+
+    boolean inited = false;
 
     private double function(double x) {
         countCalls++;
         return Math.tanh(Math.pow(Math.abs(x - 2), 3));
+    }
+
+    private void initGoldRation(){
+        if (!inited){
+            x1 = b - (b - a) * GOLDEN_EPSILON;
+            fX1 = function(x1);
+            x2 = a + (b - a) * GOLDEN_EPSILON;
+            fX2 = function(x2);
+            inited = true;
+        }
+    }
+    private void initFibonacci(){
+        if (!inited){
+            x1 = b - calcLN();
+            fX1 = function(x1);
+            x2 = a + calcLN();
+            fX2 = function(x2);
+            inited = true;
+            MAX_ITERATIONS = ITER_COUNTS;
+        }
+    }
+
+    private void calcEpsilonFibonacci(){
+        epsilonFib = fibonacci(ITER_COUNTS)/(MAX_X - MIN_X);
+    }
+
+    private double calcLN() {
+        calcEpsilonFibonacci();
+        return  (MAX_X - MIN_X) / fibonacci(ITER_COUNTS) + (double) fibonacci(ITER_COUNTS - 2) /fibonacci(ITER_COUNTS)*epsilonFib;
     }
 
     public void findMinOfFunc(Consumer<String> method) {
@@ -70,6 +105,7 @@ public class Lab1 {
     }
 
     public Consumer<String> findNewABGoldenRation() {
+        initGoldRation();
         return s -> {
             double epsilon;
             if (fX1 - fX2 < 0) {
@@ -96,6 +132,51 @@ public class Lab1 {
         };
     }
 
+    public Consumer<String> findNewABFibonacci() {
+        initFibonacci();
+        return s -> {
+            int k = ITER_COUNTS - iterationCount;
+            double LK = fibonacci(k+1)*calcLN()-fibonacci(k-1)*epsilonFib;
+            if (fX1 - fX2 < 0) {
+                functionMin = fX1;
+                functionMinPosX = x1;
+
+                b = x2;
+                x2 = x1;
+                fX2 = fX1;
+                x1 = b - LK;
+                fX1 = function(x1);
+            } else {
+                functionMin = fX2;
+                functionMinPosX = x2;
+
+                a = x1;
+                x1 = x2;
+                fX1 = fX2;
+                x2 = a + LK;
+                fX2 = function(x2);
+            }
+        };
+    }
+
+    public static long fibonacci(int n) {
+        if (n < 0) {
+            throw new IllegalArgumentException("n must be non-negative");
+        }
+        if (n == 0 || n == 1) {
+            return 1;
+        }
+
+        long prev = 1;  // F0
+        long current = 1; // F1
+        for (int i = 2; i <= n; i++) {
+            long next = prev + current;
+            prev = current;
+            current = next;
+        }
+        return current;
+    }
+
     public double getCalculatedFunctionMin() {
         return functionMin;
     }
@@ -113,6 +194,7 @@ public class Lab1 {
 
         // Выбираем метод оптимизации
         //lab.findMinOfFunc(lab.findNewABDichotomy());
-        lab.findMinOfFunc(lab.findNewABGoldenRation());
+        //lab.findMinOfFunc(lab.findNewABGoldenRation());
+        lab.findMinOfFunc(lab.findNewABFibonacci());
     }
 }
