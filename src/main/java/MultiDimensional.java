@@ -71,44 +71,82 @@ public class MultiDimensional {
     }
 
     public static DoubleVector fibonacci(IFunctionND function, DoubleVector left, DoubleVector right, double eps) {
-        DoubleVector lhs = new DoubleVector(left);
-        DoubleVector rhs = new DoubleVector(right);
-        double condition, fib_t, fib_1 = 1.0, fib_2 = 1.0;
-        int iterations = 0;
-        condition = DoubleVector.distance(rhs, lhs) / eps;
-        while (fib_2 < condition) {
-            iterations++;
-            fib_t = fib_1;
-            fib_1 = fib_2;
-            fib_2 += fib_t;
-        }
-        DoubleVector x_l = DoubleVector.add(lhs, DoubleVector.mul(DoubleVector.sub(rhs, lhs), (fib_2 - fib_1) / fib_2));
-        DoubleVector x_r = DoubleVector.add(lhs, DoubleVector.mul(DoubleVector.sub(rhs, lhs), fib_1 / fib_2));
-        double f_l = function.call(x_l);
-        double f_r = function.call(x_r);
-        for (int index = iterations; index > 0; index--) {
-            fib_t = fib_2 - fib_1;
-            fib_2 = fib_1;
-            fib_1 = fib_t;
-            if (f_l > f_r) {
-                lhs = x_l;
-                x_l = x_r;
-                f_l = f_r;
-                x_r = DoubleVector.add(lhs, DoubleVector.mul(DoubleVector.sub(rhs, lhs), fib_1 / fib_2));
-                f_r = function.call(x_r);
+        DoubleVector a = new DoubleVector(left);
+        DoubleVector b = new DoubleVector(right);
+
+        // Предварительное вычисление последовательности Фибоначчи
+        int fibonacciIterations = 20; // или вычислить динамически
+        long[] fibSequence = precomputeFibonacciSequence(fibonacciIterations);
+
+        // Инициализация длин интервалов
+        double L_prev_prev = DoubleVector.distance(b, a);
+        double L_prev = (double)fibSequence[fibonacciIterations-1] / fibSequence[fibonacciIterations] * L_prev_prev;
+
+        // Начальные точки
+        DoubleVector x1 = DoubleVector.sub(b, DoubleVector.mul(
+                DoubleVector.sub(b, a).normalized(), L_prev));
+        DoubleVector x2 = DoubleVector.add(a, DoubleVector.mul(
+                DoubleVector.sub(b, a).normalized(), L_prev));
+
+        double f_x1 = function.call(x1);
+        double f_x2 = function.call(x2);
+
+        for (int i = 0; i < fibonacciIterations - 2; i++) {
+            if (f_x1 < f_x2) {
+                // Минимум слева - отбрасываем правую часть
+                b = new DoubleVector(x2);
+                x2 = new DoubleVector(x1);
+                f_x2 = f_x1;
+
+                // Вычисляем новую длину интервала
+                double L_current = L_prev_prev - L_prev;
+                x1 = DoubleVector.sub(b, DoubleVector.mul(
+                        DoubleVector.sub(b, a).normalized(), L_current));
+                f_x1 = function.call(x1);
+
+                // Обновляем длины интервалов
+                L_prev_prev = L_prev;
+                L_prev = L_current;
             } else {
-                rhs = x_r;
-                x_r = x_l;
-                f_r = f_l;
-                x_l = DoubleVector.add(lhs, DoubleVector.mul(DoubleVector.sub(rhs, lhs), (fib_2 - fib_1) / fib_2));
-                f_l = function.call(x_l);
+                // Минимум справа - отбрасываем левую часть
+                a = new DoubleVector(x1);
+                x1 = new DoubleVector(x2);
+                f_x1 = f_x2;
+
+                // Вычисляем новую длину интервала
+                double L_current = L_prev_prev - L_prev;
+                x2 = DoubleVector.add(a, DoubleVector.mul(
+                        DoubleVector.sub(b, a).normalized(), L_current));
+                f_x2 = function.call(x2);
+
+                // Обновляем длины интервалов
+                L_prev_prev = L_prev;
+                L_prev = L_current;
+            }
+
+            // Ранняя остановка если интервал достаточно мал
+            if (DoubleVector.distance(b, a) < eps) {
+                break;
             }
         }
+
         if (NumericCommon.SHOW_ZERO_ORDER_METHODS_DEBUG_LOG) {
-            System.out.printf("fibonacci::function arg range    : %s\n", DoubleVector.distance(rhs, lhs));
-            System.out.printf("fibonacci::function probes count : %s\n", 2 + iterations);
+            System.out.printf("fibonacci::function arg range    : %s\n", DoubleVector.distance(b, a));
+            System.out.printf("fibonacci::function probes count : %s\n", 2 + (fibonacciIterations - 2));
         }
-        return DoubleVector.add(rhs, lhs).mul(0.5);
+
+        return DoubleVector.add(a, b).mul(0.5);
+    }
+
+    private static long[] precomputeFibonacciSequence(int n) {
+        long[] fibSequence = new long[n + 1];
+        fibSequence[0] = 1;
+        fibSequence[1] = 1;
+
+        for (int i = 2; i <= n; i++) {
+            fibSequence[i] = fibSequence[i - 1] + fibSequence[i - 2];
+        }
+        return fibSequence;
     }
 
     public static DoubleVector fibonacci(IFunctionND function, DoubleVector left, DoubleVector right) {
