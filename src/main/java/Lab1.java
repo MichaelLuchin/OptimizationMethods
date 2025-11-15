@@ -3,20 +3,25 @@ import java.util.function.Consumer;
 public class Lab1 {
     // Метод дихотомии, вар 16
     final static double MIN_X = -3;
+    final static double MIN_Y = -3;
     final static double MAX_X = 5;
+    final static double MAX_Y = 5;
     private static double STEP_EPSILON = 1E-4;
     private static double PRECISIONX = STEP_EPSILON * 10;
     private static int MAX_ITERATIONS = 30;
 
     // Общее состояние
     double a = MIN_X;
+    double a_y = MIN_Y;
     double b = MAX_X;
+    double b_y = MAX_Y;
     int countCalls = 0;
     int iterationCount = 0;
 
     // Результаты
     double functionMin;
     double functionMinPosX;
+    double functionMinPosY;
 
     // Для методов оптимизации
     double x1, x2, fX1, fX2;
