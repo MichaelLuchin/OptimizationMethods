@@ -1,4 +1,6 @@
+import util.DoubleMatrix;
 import util.DoubleVector;
+import util.NumericUtils;
 import util.functionalInterfaces.IFunctionND;
 import util.NumericCommon;
 
@@ -75,7 +77,7 @@ public class MultiDimensional {
         DoubleVector b = new DoubleVector(right);
 
         // Предварительное вычисление последовательности Фибоначчи
-        int fibonacciIterations = 20; // или вычислить динамически
+        int fibonacciIterations = 20; // todo: или вычислить динамически
         long[] fibSequence = precomputeFibonacciSequence(fibonacciIterations);
 
         // Инициализация длин интервалов
@@ -200,5 +202,168 @@ public class MultiDimensional {
 
     public static DoubleVector perCordDescend(IFunctionND function, DoubleVector xStart) {
         return perCordDescend(function, xStart, NumericCommon.NUMERIC_ACCURACY_MIDDLE, NumericCommon.ITERATIONS_COUNT_HIGH);
+    }
+
+
+
+    public static DoubleVector gradientDescend(IFunctionND function, DoubleVector xStart, double eps, int maxIterations) {
+        DoubleVector x_i = new DoubleVector(xStart);
+        DoubleVector x_i_1 = new DoubleVector(xStart);
+        int cntr = 0;
+        for (; cntr != maxIterations; cntr++) {
+            x_i_1 = DoubleVector.sub(x_i, NumericUtils.computeGradient2ND(x_i));
+            x_i_1 = biSect(function, x_i, x_i_1, eps, maxIterations);
+            if (DoubleVector.distance(x_i_1, x_i) < 2 * eps) break;
+            x_i = x_i_1;
+        }
+
+        if (NumericCommon.SHOW_DEBUG_LOG) System.out.printf("gradient descend iterations number : %s\n", cntr + 1);
+
+        return DoubleVector.add(x_i_1, x_i).mul(0.5);
+    }
+
+    public static DoubleVector gradientDescend(IFunctionND function, DoubleVector xStart, double eps) {
+        return gradientDescend(function, xStart, eps, NumericCommon.ITERATIONS_COUNT_HIGH);
+    }
+
+    public static DoubleVector gradientDescend(IFunctionND function, DoubleVector xStart) {
+        return gradientDescend(function, xStart, NumericCommon.NUMERIC_ACCURACY_MIDDLE, NumericCommon.ITERATIONS_COUNT_HIGH);
+    }
+
+    public static DoubleVector conjGradientDescend(IFunctionND function, DoubleVector xStart, double eps, int maxIterations) {
+        DoubleVector x_i = new DoubleVector(xStart);
+        DoubleVector x_i_1 = new DoubleVector(xStart);
+        DoubleVector s_i = NumericUtils.computeGradient2ND(xStart).mul(-1.0), s_i_1;
+        double omega;
+        int iteration = 0;
+        for (; iteration != maxIterations; iteration++) {
+            x_i_1 = DoubleVector.add(x_i, s_i);
+            x_i_1 = biSect(function, x_i, x_i_1, eps, maxIterations);
+            if (DoubleVector.distance(x_i_1, x_i) < 2 * eps) break;
+            s_i_1 = NumericUtils.computeGradient2ND(x_i_1);
+            omega = Math.pow((s_i_1).magnitude(), 2) / Math.pow((s_i).magnitude(), 2);
+            s_i.mul(omega).sub(s_i_1);
+            x_i = x_i_1;
+        }
+
+        if (NumericCommon.SHOW_DEBUG_LOG)
+            System.out.printf("Conj gradient descend iterations number : %s\n", iteration + 1);
+        return DoubleVector.add(x_i_1, x_i).mul(0.5);
+    }
+
+    public static DoubleVector conjGradientDescend(IFunctionND function, DoubleVector xStart, double eps) {
+        return conjGradientDescend(function, xStart, eps, NumericCommon.ITERATIONS_COUNT_HIGH);
+    }
+
+    public static DoubleVector conjGradientDescend(IFunctionND function, DoubleVector xStart) {
+        return conjGradientDescend(function, xStart, NumericCommon.NUMERIC_ACCURACY_MIDDLE, NumericCommon.ITERATIONS_COUNT_HIGH);
+    }
+
+    public static DoubleVector newtoneRaphson(IFunctionND function, DoubleVector xStart, double eps, int maxIterations) {
+        DoubleVector x_i = new DoubleVector(xStart);
+        DoubleVector x_i_1 = new DoubleVector(xStart);
+        int iteration = -1;
+
+        for (; iteration != maxIterations; iteration++) {
+            DoubleMatrix hessian = new DoubleMatrix(2, 2);
+
+            double x0 = x_i.get(0);
+            double x1 = x_i.get(1);
+
+            // Элемент H[0,0] = ∂²f/∂x₀²
+            double diff0 = x0 - 2;
+            double abs0 = Math.abs(diff0);
+            if (abs0 > eps) {
+                double cube0 = abs0 * abs0 * abs0;  // |x₀-2|³
+                double tanh0 = Math.tanh(cube0);
+                double sech2_0 = 1 - tanh0 * tanh0;  // 1 - tanh²(|x₀-2|³)
+                double h11 = 6 * abs0 * sech2_0 - 18 * Math.pow(diff0, 4) * tanh0 * sech2_0;
+                hessian.set(0, 0, h11);
+            } else {
+                hessian.set(0, 0, 0.0);  // Вблизи x=2
+            }
+
+            // Элемент H[1,1] = ∂²f/∂x₁²
+            double diff1 = x1 - 2;
+            double abs1 = Math.abs(diff1);
+            if (abs1 > eps) {
+                double cube1 = abs1 * abs1 * abs1;  // |x₁-2|³
+                double tanh1 = Math.tanh(cube1);
+                double sech2_1 = 1 - tanh1 * tanh1;  // 1 - tanh²(|x₁-2|³)
+                double h22 = 6 * abs1 * sech2_1 - 18 * Math.pow(diff1, 4) * tanh1 * sech2_1;
+                hessian.set(1, 1, h22);
+            } else {
+                hessian.set(1, 1, 0.0);  // Вблизи y=2
+            }
+
+            // Недиагональные элементы = 0
+            hessian.set(0, 1, 0.0);
+            hessian.set(1, 0, 0.0);
+
+            // Обратная матрица Гессе
+            DoubleMatrix invHessian = DoubleMatrix.invert(hessian);
+
+            if (invHessian == null) {
+                if (NumericCommon.SHOW_DEBUG_LOG) {
+                    System.out.println("Hessian is singular, assuming minimum found");
+                }
+                return x_i;  // Возвращаем текущую точку как результат
+            }
+
+            // Градиент (можно тоже аналитически, но оставим численно)
+            DoubleVector grad = NumericUtils.computeGradient2ND(x_i);
+
+            // Шаг Ньютона: x_{k+1} = x_k - H^{-1} * ∇f(x_k)
+            x_i_1 = DoubleVector.sub(x_i, DoubleMatrix.mul(invHessian, grad));
+
+            // Условие остановки
+            double stepNorm = DoubleVector.distance(x_i_1, x_i);
+            double gradNorm = grad.magnitude();
+
+            if (stepNorm < eps || gradNorm < eps) {
+                break;
+            }
+
+            x_i = x_i_1;
+        }
+
+        if (NumericCommon.SHOW_DEBUG_LOG) {
+            System.out.printf("Newton-Raphson (analytical Hessian) iterations: %s\n", iteration + 1);
+        }
+
+        return DoubleVector.add(x_i_1, x_i).mul(0.5);
+    }
+
+    public static DoubleVector newtoneRaphson(IFunctionND function, DoubleVector xStart, double eps) {
+        return newtoneRaphson(function, xStart, eps, NumericCommon.ITERATIONS_COUNT_LOW);
+    }
+
+    public static DoubleVector newtoneRaphson(IFunctionND function, DoubleVector xStart) {
+        return newtoneRaphson(function, xStart, NumericCommon.NUMERIC_ACCURACY_MIDDLE, NumericCommon.ITERATIONS_COUNT_LOW);
+    }
+
+    public static DoubleVector external_penalty(IFunctionND function, IFunctionND penaltyF, DoubleVector xStart, DoubleMatrix constraints, double eps, int maxIterations) {
+        IFunctionND penalizedFunction = x -> {
+            if (x.get(0) < constraints.get(0).get(0) || x.get(1) < constraints.get(1).get(0)
+                    || x.get(0) > constraints.get(0).get(1) || x.get(1) > constraints.get(1).get(1)) {
+                double mainValue = function.call(x);
+                double penaltyValue = penaltyF.call(x);
+                return mainValue + 3 * penaltyValue;
+            }else return function.call(x);
+        };
+
+        return gradientDescend(penalizedFunction, xStart, eps, maxIterations);
+    }
+    public static DoubleVector external_penalty(IFunctionND function, DoubleVector xStart, double eps) {
+        IFunctionND penaltyF = x ->{
+            return Math.pow(x.get(0) - 2.0, 4) + Math.pow(x.get(1) - 2.0, 4);
+        };
+
+        DoubleMatrix constraints = new DoubleMatrix(new DoubleVector(1.0,3.0), new DoubleVector(1.0,3.0));
+
+        return external_penalty(function, penaltyF, xStart, constraints, eps, NumericCommon.ITERATIONS_COUNT_HIGH);
+    }
+    public static DoubleVector external_penalty(IFunctionND function, DoubleVector xStart) {
+        return external_penalty(function, xStart, NumericCommon.NUMERIC_ACCURACY_MIDDLE);
     }
 }

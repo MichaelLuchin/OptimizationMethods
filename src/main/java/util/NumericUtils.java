@@ -5,6 +5,7 @@ import util.functionalInterfaces.IFunctionND;
 
 @SuppressWarnings("all")
 public class NumericUtils {
+    private static int countCalls = 0;
 
     private static int getFactorial(int f) {
         int result = 1;
@@ -43,12 +44,34 @@ public class NumericUtils {
     }
 
     public static double testFunc1D(double x) {
+        countCalls++;
         return Math.tanh(Math.pow(Math.abs(x - 2), 3)); // min at point x = 2
     }
 
     private static double _testFunc2D(DoubleVector x) {
+        countCalls++;
         return Math.tanh(Math.pow(Math.abs(x.get(0) - 2), 3)) +
                 Math.tanh(Math.pow(Math.abs(x.get(1) - 2), 3)); // min at point x = 2, y = 2
+    }
+
+    public static DoubleVector computeGradient2ND(DoubleVector input) {
+        double x = input.get(0);
+        double y = input.get(1);
+
+        double gradX = computeComponentDerivative(x);
+        double gradY = computeComponentDerivative(y);
+
+        return new DoubleVector(gradX, gradY);
+    }
+
+    private static double computeComponentDerivative(double value) {
+        double diff = value - 2;
+        double absDiff = Math.abs(diff);
+        double term = Math.pow(absDiff, 3);
+
+        double tanhDerivative = 1 - Math.pow(Math.tanh(term), 2);
+
+        return tanhDerivative * 3 * absDiff * diff;
     }
 
     private static double _testFuncND(DoubleVector x) {
@@ -236,5 +259,12 @@ public class NumericUtils {
             this._numerator = number[1];
             this._denominator = number[2];
         }
+    }
+
+    public static int getCountCalls(){
+        return countCalls;
+    }
+    public static void reserCountCalls(){
+        countCalls = 0;
     }
 }
