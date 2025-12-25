@@ -469,12 +469,12 @@ public class MultiDimensional {
         double step = initialStep;
 
         int iteration = 0;
-        int functionCalls = 1; // уже посчитали baseValue
+        int functionCalls = 1;
 
         while (iteration < maxIterations && step > eps) {
             iteration++;
 
-            // 1. Исследующий поиск (Exploratory Move)
+            // 1. Исследующий поиск
             DoubleVector explorePoint = new DoubleVector(basePoint);
             double exploreValue = baseValue;
 
@@ -506,7 +506,7 @@ public class MultiDimensional {
 
             // 2. Проверяем успешность исследующего поиска
             if (exploreValue < baseValue) {
-                // 3. Паттерн-ход (Pattern Move)
+                // 3. Паттерн-ход
                 DoubleVector direction = DoubleVector.sub(explorePoint, basePoint);
                 DoubleVector patternPoint = DoubleVector.add(explorePoint,
                         DoubleVector.mul(direction, patternStepFactor));
