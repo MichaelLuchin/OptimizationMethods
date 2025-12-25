@@ -1,8 +1,5 @@
-import util.DoubleMatrix;
-import util.DoubleVector;
-import util.NumericUtils;
+import util.*;
 import util.functionalInterfaces.IFunctionND;
-import util.NumericCommon;
 
 public class MultiDimensional {
     public static DoubleVector biSect(IFunctionND function, DoubleVector left, DoubleVector right,
@@ -348,22 +345,234 @@ public class MultiDimensional {
                     || x.get(0) > constraints.get(0).get(1) || x.get(1) > constraints.get(1).get(1)) {
                 double mainValue = function.call(x);
                 double penaltyValue = penaltyF.call(x);
-                return mainValue + 3 * penaltyValue;
+                return mainValue + 10 * penaltyValue;
             }else return function.call(x);
         };
 
         return gradientDescend(penalizedFunction, xStart, eps, maxIterations);
     }
     public static DoubleVector external_penalty(IFunctionND function, DoubleVector xStart, double eps) {
-        IFunctionND penaltyF = x ->{
-            return Math.pow(x.get(0) - 2.0, 4) + Math.pow(x.get(1) - 2.0, 4);
-        };
+        DoubleMatrix constraints = new DoubleMatrix(
+                new DoubleVector(2.5,3.0),
+                new DoubleVector(2.5,3.0));
 
-        DoubleMatrix constraints = new DoubleMatrix(new DoubleVector(1.0,3.0), new DoubleVector(1.0,3.0));
+        IFunctionND penaltyF = x ->{
+            return Math.exp(Math.abs(x.get(0) - (constraints.get(0).get(0)+constraints.get(0).get(1))/2)) //смещаем функцию к середине ограничений
+                    + Math.exp(Math.abs(x.get(1) - (constraints.get(1).get(0)+constraints.get(1).get(1))/2));
+        };
 
         return external_penalty(function, penaltyF, xStart, constraints, eps, NumericCommon.ITERATIONS_COUNT_HIGH);
     }
     public static DoubleVector external_penalty(IFunctionND function, DoubleVector xStart) {
         return external_penalty(function, xStart, NumericCommon.NUMERIC_ACCURACY_MIDDLE);
+    }
+
+    public static DoubleVector internal_penalty(IFunctionND function, IFunctionND penaltyF, DoubleVector xStart, DoubleMatrix constraints, double eps, int maxIterations) {
+        IFunctionND penalizedFunction = x -> {
+            double mainValue = function.call(x);
+            double penaltyValue = penaltyF.call(x);
+            return mainValue + 10 * penaltyValue;
+        };
+
+        return gradientDescend(penalizedFunction, xStart, eps, maxIterations);
+    }
+    public static DoubleVector internal_penalty(IFunctionND function, DoubleVector xStart, double eps) {
+        DoubleMatrix constraints = new DoubleMatrix(
+                new DoubleVector(1.5,3.0), //xmin xmax
+                new DoubleVector(1.5,3.0));//ymin ymax
+        IFunctionND penaltyF = x ->{
+            return Math.pow(x.get(0) - (constraints.get(0).get(0)+constraints.get(0).get(1))/2, 4)//смещаем функцию к середине ограничений
+                    + Math.pow(x.get(1) - (constraints.get(1).get(0)+constraints.get(1).get(1))/2, 4);
+        };
+
+
+
+        return internal_penalty(function, penaltyF, xStart, constraints, eps, NumericCommon.ITERATIONS_COUNT_HIGH);
+    }
+    public static DoubleVector internal_penalty(IFunctionND function, DoubleVector xStart) {
+        return internal_penalty(function, xStart, NumericCommon.NUMERIC_ACCURACY_MIDDLE);
+    }
+
+    /**
+     * Генетический алгоритм оптимизации
+     *
+     * @param function Целевая функция
+     * @param xBounds Границы по X [min, max]
+     * @param yBounds Границы по Y [min, max]
+     * @param populationSize Размер популяции
+     * @param maxIterations Максимальное число итераций
+     * @return Найденная точка минимума
+     */
+    public static DoubleVector geneticAlgorithm(
+            IFunctionND function,
+            DoubleVector xBounds,
+            DoubleVector yBounds,
+            int populationSize,
+            int maxIterations) {
+
+        return GeneticAlgorithm.geneticAlgorithm(
+                function, xBounds, yBounds,
+                populationSize, maxIterations
+        );
+    }
+
+    /**
+     * Упрощенная версия генетического алгоритма
+     */
+    public static DoubleVector geneticAlgorithm(
+            IFunctionND function,
+            DoubleVector xBounds,
+            DoubleVector yBounds) {
+
+        return geneticAlgorithm(function, xBounds, yBounds, 50, NumericCommon.ITERATIONS_COUNT_LOW);
+    }
+
+    /**
+     * Генетический алгоритм со стандартными границами
+     */
+    public static DoubleVector geneticAlgorithm(IFunctionND function) {
+        return geneticAlgorithm(
+                function,
+                new DoubleVector(-10.0, 10.0),
+                new DoubleVector(-10.0, 10.0)
+        );
+    }
+
+    /**
+     * Метод Хука-Дживса (Hooke-Jeeves) для минимизации функции
+     *
+     * @param function Целевая функция
+     * @param startPoint Начальная точка поиска
+     * @param initialStep Начальный размер шага
+     * @param stepReduction Коэффициент уменьшения шага (alpha, обычно 0.5)
+     * @param patternStepFactor Коэффициент увеличения шага для паттерн-хода (beta, обычно 2.0)
+     * @param eps Точность остановки
+     * @param maxIterations Максимальное число итераций
+     * @return Найденная точка минимума
+     */
+    public static DoubleVector hookeJeeves(
+            IFunctionND function,
+            DoubleVector startPoint,
+            double initialStep,
+            double stepReduction,
+            double patternStepFactor,
+            double eps,
+            int maxIterations) {
+
+        int dimension = startPoint.size();
+        DoubleVector currentPoint = new DoubleVector(startPoint);
+        DoubleVector basePoint = new DoubleVector(startPoint);
+
+        double currentValue = function.call(currentPoint);
+        double baseValue = currentValue;
+
+        double step = initialStep;
+
+        int iteration = 0;
+        int functionCalls = 1; // уже посчитали baseValue
+
+        while (iteration < maxIterations && step > eps) {
+            iteration++;
+
+            // 1. Исследующий поиск (Exploratory Move)
+            DoubleVector explorePoint = new DoubleVector(basePoint);
+            double exploreValue = baseValue;
+
+            for (int i = 0; i < dimension; i++) {
+                // Пробуем шаг в положительном направлении
+                DoubleVector tryPoint = new DoubleVector(explorePoint);
+                tryPoint.set(i, tryPoint.get(i) + step);
+                double tryValue = function.call(tryPoint);
+                functionCalls++;
+
+                if (tryValue < exploreValue) {
+                    explorePoint = tryPoint;
+                    exploreValue = tryValue;
+                    continue; // Успешный шаг, переходим к следующей координате
+                }
+
+                // Пробуем шаг в отрицательном направлении
+                tryPoint = new DoubleVector(explorePoint);
+                tryPoint.set(i, tryPoint.get(i) - step);
+                tryValue = function.call(tryPoint);
+                functionCalls++;
+
+                if (tryValue < exploreValue) {
+                    explorePoint = tryPoint;
+                    exploreValue = tryValue;
+                }
+                // Если оба шага неудачны, остаемся на месте
+            }
+
+            // 2. Проверяем успешность исследующего поиска
+            if (exploreValue < baseValue) {
+                // 3. Паттерн-ход (Pattern Move)
+                DoubleVector direction = DoubleVector.sub(explorePoint, basePoint);
+                DoubleVector patternPoint = DoubleVector.add(explorePoint,
+                        DoubleVector.mul(direction, patternStepFactor));
+
+                double patternValue = function.call(patternPoint);
+                functionCalls++;
+
+                // 4. Проверяем успешность паттерн-хода
+                if (patternValue < exploreValue) {
+                    // Успешный паттерн-ход
+                    basePoint = patternPoint;
+                    baseValue = patternValue;
+                    currentPoint = patternPoint;
+                    currentValue = patternValue;
+                } else {
+                    // Паттерн-ход неудачен, используем точку из исследующего поиска
+                    basePoint = explorePoint;
+                    baseValue = exploreValue;
+                    currentPoint = explorePoint;
+                    currentValue = exploreValue;
+                }
+            } else {
+                // Исследующий поиск неудачен - уменьшаем шаг
+                step *= stepReduction;
+            }
+        }
+
+        if (NumericCommon.SHOW_DEBUG_LOG) {
+            System.out.printf("Hooke-Jeeves iterations: %s\n", iteration);
+            System.out.printf("Function calls: %s\n", functionCalls);
+            System.out.printf("Final step size: %.6f\n", step);
+        }
+
+        return currentPoint;
+    }
+
+    /**
+     * Упрощенная версия метода Хука-Дживса с параметрами по умолчанию
+     */
+    public static DoubleVector hookeJeeves(
+            IFunctionND function,
+            DoubleVector startPoint,
+            double eps) {
+
+        return hookeJeeves(
+                function,
+                startPoint,
+                1.0,           // initialStep
+                0.5,           // stepReduction
+                2.0,           // patternStepFactor
+                eps,
+                NumericCommon.ITERATIONS_COUNT_HIGH
+        );
+    }
+
+    /**
+     * Метод Хука-Дживса с параметрами по умолчанию
+     */
+    public static DoubleVector hookeJeeves(
+            IFunctionND function,
+            DoubleVector startPoint) {
+
+        return hookeJeeves(
+                function,
+                startPoint,
+                NumericCommon.NUMERIC_ACCURACY_MIDDLE
+        );
     }
 }
